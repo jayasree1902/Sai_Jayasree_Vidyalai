@@ -1,103 +1,172 @@
-import axios from 'axios';
-import React, { useEffect, useState } from 'react';
+import PropTypes from 'prop-types';
+import React, { useRef, useState, useEffect } from 'react';
 import styled from '@emotion/styled';
-import Post from './Post';
-import Container from '../common/Container';
-import { useWindowWidth } from '../hooks/WindowcontextAPI';
 
-const PostListContainer = styled.div(() => ({
+const PostContainer = styled.div(() => ({
+  width: '300px',
+  margin: '10px',
+  border: '1px solid #ccc',
+  borderRadius: '5px',
+  overflow: 'hidden',
+}));
+
+const CarouselContainer = styled.div(() => ({
+  position: 'relative',
+}));
+
+const Carousel = styled.div(() => ({
   display: 'flex',
-  flexWrap: 'wrap',
-  justifyContent: 'center',
+  overflow: 'hidden',
+  scrollbarWidth: 'none',
+  msOverflowStyle: 'none',
+  '&::-webkit-scrollbar': {
+    display: 'none',
+  },
 }));
 
-const LoadMoreButton = styled.button(() => ({
-  padding: '10px 20px',
-  backgroundColor: '#007bff',
-  color: '#fff',
+const CarouselItem = styled.div(() => ({
+  flex: '0 0 100%',
+  scrollSnapAlign: 'start',
+}));
+
+const Image = styled.img(() => ({
+  width: '100%',
+  height: 'auto',
+  maxHeight: '300px',
+}));
+
+const Content = styled.div(() => ({
+  padding: '10px',
+  '& > h2': {
+    marginBottom: '16px',
+  },
+}));
+
+const Button = styled.button(() => ({
+  position: 'absolute',
+  top: '50%',
+  transform: 'translateY(-50%)',
+  backgroundColor: 'rgba(255, 255, 255, 0.5)',
   border: 'none',
-  borderRadius: 5,
+  color: '#000',
+  fontSize: '20px',
   cursor: 'pointer',
-  fontSize: 16,
-  marginTop: 20,
-  transition: 'background-color 0.3s ease',
-  fontWeight: 600,
-
-  '&:hover': {
-    backgroundColor: '#0056b3',
-  },
-  '&:disabled': {
-    backgroundColor: '#808080',
-    cursor: 'default',
-  },
+  height: '50px',
+  zIndex: 1,
 }));
 
-const Posts = () => {
-  const [posts, setPosts] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [morePosts, setMorePosts] = useState(true);
-  const [page, setPage] = useState(0);
-  const [clickCount, setClickCount] = useState(0);
-  const { isSmallerDevice } = useWindowWidth();
+const PrevButton = styled(Button)`
+  left: 10px;
+`;
 
-  const fetchPosts = async (page) => {
-    setIsLoading(true);
-    try {
-      const limit = isSmallerDevice ? 5 : 10;
-      const { data: postsData } = await axios.get('/api/v1/posts', {
-        params: { start: page * limit, limit },
-      });
-      const { data: users } = await axios.get('/api/v1/users', {
-        params: { start: page * limit, limit },
-      });
-      const { data: photos } = await axios.get(
-        'https://jsonplaceholder.typicode.com/albums/1/photos',
-        {
-          params: { start: page * limit, limit },
-        }
-      );
-      const postsWithPhotos = postsData.map((post) => ({
-        ...post,
-        photo: photos.find((photo) => photo.id === post.id),
-        user: users.find((user) => user.id === post.id),
-      }));
+const NextButton = styled(Button)`
+  right: 10px;
+`;
 
-      setPosts((prevPosts) => [...prevPosts, ...postsWithPhotos]);
-      setMorePosts(postsWithPhotos.length === limit);
-    } catch (error) {
-      console.error('Error fetching posts:', error);
-      setMorePosts(false);
-    }
-    setIsLoading(false);
-  };
+const UserInfo = styled.div(() => ({
+  display: 'flex',
+  alignItems: 'center',
+  padding: '10px',
+  backgroundColor: '#f1f1f1',
+  borderBottom: '1px solid #ccc',
+}));
+
+const UserInitials = styled.div(() => ({
+  width: '40px',
+  height: '40px',
+  borderRadius: '50%',
+  backgroundColor: '#ccc',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontWeight: 'bold',
+  fontSize: '16px',
+  marginRight: '10px',
+}));
+
+const UserNameEmail = styled.div(() => ({
+  display: 'flex',
+  flexDirection: 'column',
+}));
+
+const UserName = styled.div(() => ({
+  fontWeight: 'bold',
+}));
+
+const Post = ({ post }) => {
+  const carouselRef = useRef(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
-    fetchPosts(page);
-  }, [page, isSmallerDevice]);
+    if (carouselRef.current) {
+      carouselRef.current.scrollTo({
+        left: currentIndex * carouselRef.current.offsetWidth,
+        behavior: 'smooth',
+      });
+    }
+  }, [currentIndex]);
 
-  const handleClick = () => {
-    setIsLoading(true);
-    setPage((prevPage) => prevPage + 1);
-    setClickCount((prevCount) => prevCount + 1);
+  const handleNextClick = () => {
+    setCurrentIndex((prevIndex) => (prevIndex + 1) % post.images.length);
   };
 
-  return (
-    <Container>
-      <PostListContainer>
-        {posts.map((post) => (
-          <Post key={post.id} post={post} />
-        ))}
-      </PostListContainer>
+  const handlePrevClick = () => {
+    setCurrentIndex((prevIndex) =>
+      prevIndex === 0 ? post.images.length - 1 : prevIndex - 1
+    );
+  };
 
-      <div style={{ display: 'flex', justifyContent: 'center' }}>
-        {morePosts && clickCount < 2 && (
-          <LoadMoreButton onClick={handleClick} disabled={isLoading}>
-            {!isLoading ? 'Load More' : 'Loading...'}
-          </LoadMoreButton>
-        )}
-      </div>
-    </Container>
+  const getInitials = (name) => {
+    const [firstName, lastName] = name.split(' ');
+    return `${firstName.charAt(0)}${lastName.charAt(0)}`;
+  };
+
+  const userName = post.user ? post.user.name : 'Leanne Graham';
+  const userEmail = post.user ? post.user.email : 'Sincere@april.biz';
+  const userInitials = post.user ? getInitials(post.user.name) : 'LG';
+
+  return (
+    <PostContainer>
+      <UserInfo>
+        <UserInitials>{userInitials}</UserInitials>
+        <UserNameEmail>
+          <UserName>{userName}</UserName>
+          <div>{userEmail}</div>
+        </UserNameEmail>
+      </UserInfo>
+      <CarouselContainer>
+        <Carousel ref={carouselRef}>
+          {post.images.map((image, index) => (
+            <CarouselItem key={index}>
+              <Image src={image.url} alt={post.title} />
+            </CarouselItem>
+          ))}
+        </Carousel>
+        <PrevButton onClick={handlePrevClick}>&#10094;</PrevButton>
+        <NextButton onClick={handleNextClick}>&#10095;</NextButton>
+      </CarouselContainer>
+      <Content>
+        <h2>{post.title}</h2>
+        <p>{post.body}</p>
+      </Content>
+    </PostContainer>
   );
 };
 
-export default Posts;
+Post.propTypes = {
+  post: PropTypes.shape({
+    title: PropTypes.string.isRequired,
+    body: PropTypes.string.isRequired,
+    images: PropTypes.arrayOf(
+      PropTypes.shape({
+        url: PropTypes.string.isRequired,
+      })
+    ).isRequired,
+    user: PropTypes.shape({
+      name: PropTypes.string,
+      email: PropTypes.string,
+    }),
+  }).isRequired,
+};
+
+export default Post;
