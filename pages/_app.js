@@ -1,9 +1,10 @@
 import React from 'react';
+import {WindowProvider} from '../components/hooks/WindowcontextAPI.js';
 
 const App = ({ Component, pageProps }) => (
-  <React.Fragment>
+  <WindowProvider>
     <Component {...pageProps} />
-  </React.Fragment>
+  </WindowProvider>
 );
 
 export default App;
